@@ -1,6 +1,10 @@
+# stack YRBSS data files 1991, 1993, ..., 2011 into a single data table
+# keeping variables sex, grade, weight, stratum, psu
+# analysis variable is ever smoked cigarettes, even one or two puffs (smoke)
+
+
 library(tidyverse)
 library(here)
-library(srvyr)
 
 col_names <- c("sex", "grade", "smoke", "weight", "stratum", "psu", "race")
 
@@ -29,8 +33,6 @@ end_list <- list(c(2, 3, 23, 83, 91, 86, 4),
                  c(18, 19, 60, 373, 376, 382, 389))
 
 dat_files <- c(paste0("YRBS", seq(1991, 2009, 2), ".dat"), "yrbs2011.dat")
-# dat_files <- paste0("\"", dat_files, "\"")
-# dat_files <- as.list(paste0("\"", dat_files, "\""))
 
 read_yrbs <- function(df, start, end) {
   read_fwf(here("YRBSS data", df),
@@ -59,98 +61,3 @@ save(yrbs_dat, file = here("YRBSS data", "yrbs.Rdata"))
 
 # OK TO HERE --------------------------------------------------------------
 
-
-
-dat_yrbs <- list(dat_files, begin_list, end_list) 
-
-
-
-
-dat <- list(dat_files, begin_list, end_list) %>% 
-  set_names(c("datafile", "begin", "end"))
-
-map2(begin_list, end_list, `+`)
-map2(begin_list, end_list, ~ .x + .y)
-
-map2(dat_files, begin_list, ~ paste(.x, .y) )
-
-
-
-yrbs_all_dat <- tibble(
-  data_file = map_chr(dat_files)
-  
-  
-)
-
-
-
-
-pmap(dat_files, begin_list, end_list, ~ paste(..1, ..2, ..3) )
-
-
-yrbs_all_dat <- 
-  map_dfr(dat_files, begin_list, end_list,
-          ~ read_fwf(here("YRBSS data", ..1),
-                     fwf_positions(..2, ..3,
-                                   c("sex", "grade", "smoke", "weight", 
-                                     "stratum", "psu", "race"))))
-                        
-                        
-
-
-read_yrbs <- function(df, start, end)
-  read_fwf(here("YRBSS data", df),
-           fwf_positions(start, end,
-                         c("sex", "grade", "smoke", "weight", "stratum", 
-                           "psu", "race")))
-
-yrbs_all_dat <- tibble(year = seq(1991, 2011, 2),
-                       yrbs_dat = dat_files,
-                       begin = begin_list,
-                       end = end_list)
-pmap_dfr(yrbs_all_dat, function(df, start, end)
-  read_fwf(here("YRBSS data", df),
-           fwf_positions(start, end,
-                         c("sex", "grade", "smoke", "weight", "stratum", 
-                           "psu", "race"))))
-
-%>% 
-  # PROBLEM HERE--USE map() INSTEAD?
-  mutate(smoke = read_yrbs(yrbs_dat, begin, end))
-
-# big_list <- list(dat_files, begin_list, end_list)
-# map(~ read_yrbs(.big_list))
-
-read_yrbs("YRBS2011.dat", begin_list[[11]], end_list[[11]])
-
-map(yrbs_all_dat, ~ read_yrbs())
-
-yrbs1993 <- read_fwf(here("YRBSS data", "YRBS1993.dat"),
-                     fwf_positions(begin_list[[2]], end_list[[2]],
-                                   col_names))
-
-
-
-
-
-
-
-yrbs2009 <- read_yrbs("yrbs2009.dat", begin_list[[10]], end_list[[10]])
-# works, now assemble list of all argument values
-
-  
-count(yrbs2011, race) # looks good
-
-yrbs2011_svy <- as_survey_design(yrbs2011, ids = psu, strata = stratum,
-                                 weights = weight)
-
-yrbs2011_svy %>% 
-  filter(!is.na(race)) %>% 
-  group_by(race) %>% 
-  summarize(pct = survey_mean()) %>% 
-  mutate(across(starts_with("pct"), ~ 100 * .x))
-
-
-yrbs1991 <- read_yrbs("YRBS1991.dat", begin_list[[1]], end_list[[1]] )
-yrbs1993 <- read_yrbs("YRBS1993.dat", begin_list[[2]], end_list[[2]] )
-yrbs2011 <- read_yrbs("yrbs2011.dat", begin_list[[11]], end_list[[11]] )
