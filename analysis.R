@@ -167,16 +167,16 @@ slope(model_seg, APC = TRUE)
 # estimated breakpoint is 1999
 
 # fit record-level model as recommended by NCHS
-brfs_model <- yrbs_svy  %>% 
+brfs_seg <- yrbs_svy  %>% 
   mutate(seg1 = ifelse(survyear <= breakpoint, survyear, breakpoint),
          seg2 = ifelse(survyear <= breakpoint, 0, survyear - breakpoint))
-brfs_fit <- svyglm(I(smoke == "Yes") ~ seg1 + seg2, design = brfs_model,
+brfs_fit <- svyglm(I(smoke == "Yes") ~ seg1 + seg2, design = brfs_seg,
                    family = quasibinomial)
 
 brfs_result <- augment(brfs_fit) %>% 
   mutate(survyear = seg1 + seg2) %>% 
   distinct(survyear, `.fitted`) %>% 
-  mutate(pct_fitted = 100 * boot::inv.logit(`.fitted`)) %>% 
+  mutate(pct_fitted = 100 * inv_logit(`.fitted`)) %>% 
   inner_join(means_for_joinpoint, by = c("survyear" = "year"))
 # graph observed adjusted estimates and fitted values
 brfs_result %>% 
@@ -191,9 +191,10 @@ tidy(brfs_fit, conf.int = TRUE) %>%
 # MAKES SENSE, BUT DIFFERENT FROM segmented--CHECK OUT
 #  this analysis uses record level data; {segmented} uses aggregated measures 
 # EXPLORE USING RELATIVE RISK REGRESSION TO DETERMINE AVERAGE PERCENT CHANGE IN PREVALENCE
-rr_fit <- svyglm(I(smoke == "Yes") ~ seg1 + seg2, design = brfs_model,
-                   family = quasibinomial(log), start = c(-0.5, 0, 0))
-
+rr_fit <- svyglm(I(smoke == "Yes") ~ seg1 + seg2, design = brfs_seg,
+                   family = quasibinomial(log), 
+                 start = c(-0.5, rep(0, 2)))
+# marginals_rr <- svypredmeans(rr_fit, ~  seg1 + seg2)
 rr_results <- augment(rr_fit) %>% 
   mutate(survyear = seg1 + seg2) %>% 
   distinct(survyear, `.fitted`) %>% 
@@ -208,5 +209,23 @@ tidy(rr_fit, conf.int = TRUE) %>%
   mutate(across(c(estimate, conf.low, conf.high),
                 ~ 100 * (exp(.x) - 1))) 
 
+# in manuscript make table of smoking estimates with question number, sample 
+#   sizes, etc.
+
 # LOOKS GOOD!
+rr_adj_fit <- 
+  svyglm(I(smoke == "Yes") ~ seg1 + seg2, #+ sex + grade + raceeth, 
+         design = brfs_model, family = quasibinomial(log), 
+         start = c(-0.5, rep(0, 2))) # 0, 9 if using covariates
+# TRY USING MODEL WITH COVARIATES, THEN MARGINAL MEANS WITH BOTH seg1 AND
+#   seg2 AS MARGINS--WOULD IT PRODUCE THE SAME RESULTS AS USING YEAR?
+
+rr_adj_results <- augment(rr_adj_fit) %>% 
+  mutate(survyear = seg1 + seg2) %>% 
+  distinct(survyear, `.fitted`) %>% 
+  mutate(pct_fitted = 100 * exp(`.fitted`)) %>% 
+  inner_join(means_for_joinpoint, by = c("survyear" = "year")) %>% 
+  ggplot(aes(x = survyear)) +
+  geom_point(aes(y = pct)) +
+  geom_line(aes(y = pct_fitted))
 
