@@ -12,10 +12,10 @@ yrbs_url <- c(
   paste0("ftp://ftp.cdc.gov/pub/data/yrbs/", yrs, "/YRBS", yrs, ".zip"))
 yrbs_files <- c("XXH2019_YRBS_Data.zip", "XXH2017_YRBS_Data.zip",
                 paste0("YRBS", seq(2015, 1991, -2), ".zip"))
-walk2(yrbs_url, here("YRBSS data", yrbs_files), download.file, mode = "wb")
+walk2(yrbs_url, here("YRBSS", yrbs_files), download.file, mode = "wb")
 
 # unzip Access files
-walk(here("YRBSS data", yrbs_files), unzip, exdir = "YRBSS data")
+walk(here("YRBSS", yrbs_files), unzip, exdir = "YRBSS data")
 
 # unzip user guides
 yrbs_pdf_url <- c(
@@ -30,6 +30,6 @@ yrbs_pdf_files <- c(
   "2015_yrbs-data-users_guide_smy_combined.pdf",
   paste0("YRBS_", yrs, "_National_User_Guide.pdf"))
 
-walk2(yrbs_pdf_url, here("YRBSS data", yrbs_pdf_files), download.file, 
+walk2(yrbs_pdf_url, here("YRBSS", yrbs_pdf_files), download.file, 
       mode = "wb")
   
