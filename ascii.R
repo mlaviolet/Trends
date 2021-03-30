@@ -43,7 +43,7 @@ read_yrbs <- function(df, start, end) {
     relocate(survyear)
   }
 
-yrbs_all_dat <- list(11)
+yrbs_all_dat <- list()
 for(i in 1:length(dat_files)) {
   yrbs_all_dat[[i]] <- 
     read_yrbs(dat_files[i], begin_list[[i]], end_list[[i]]) 
@@ -54,8 +54,6 @@ yrbs_dat <- bind_rows(yrbs_all_dat) %>%
   mutate(survyear = as.numeric(str_sub(survyear, 5, 8)))
 rm(i, begin_list, end_list, yrbs_all_dat, col_names, dat_files, read_yrbs)
   
-# read_yrbs(dat_files[1], begin_list[[1]], end_list[[1]])
-
 count(yrbs_dat, survyear)
 save(yrbs_dat, file = here("YRBSS data", "yrbs.Rdata"))
 
