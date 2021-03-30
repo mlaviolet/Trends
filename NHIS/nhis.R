@@ -13,8 +13,14 @@ options(survey.lonely.psu = "adjust")
 # ftp://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2015/personsx.zip
 # ftp://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2015/samadult.zip
 
-person_15 <- 
-  read_fwf(here("NHIS", "2015", "personsx.dat"),
+# for 2015:
+#  srvy_yr 3-6
+#  hhx 7-12 (household ID)
+#  fmx 16-17 (family ID)
+#  fpx 18-19 (person ID within family)
+#  cover 543-543 (health insurance under age 65)
+
+person_15 <- read_fwf(here("NHIS", "2015", "personsx.dat"),
            fwf_positions(c(3, 7, 16, 18, 543),
                          c(6, 12, 17, 19, 543),
                          c("srvy_yr", "hhx", "fmx", "fpx", "cover")))
@@ -26,7 +32,7 @@ samadult_15 <-
                          c("srvy_yr", "hhx", "fmx", "fpx", "wtfa", 
                            "stratum", "psu", "age", "ahernoy2")))
 
-nhis_svy <- inner_join(person_15, samadult_15, 
+nhis15_svy <- inner_join(person_15, samadult_15, 
                       by = c("srvy_yr", "hhx", "fmx", "fpx")) %>% 
   mutate(across(c(wtfa, ahernoy2), as.numeric),
          # group ages by 18-64 and 65+
@@ -40,7 +46,7 @@ nhis_svy <- inner_join(person_15, samadult_15,
   as_survey_design(ids = psu, strata = stratum, weight = wtfa, nest = TRUE)
 
 # percent of adults 18-64 with at least one ED visit, 2015
-nhis_svy %>%
+nhis15_svy %>%
   filter(agegrp == "18-64") %>% 
   group_by(instype) %>%
   summarize(pct = survey_mean(anyeruse == "One or more", na.rm = TRUE)) %>% 
@@ -49,7 +55,12 @@ nhis_svy %>%
 # point estimates OK, stderrs slightly off  
 # possibly because analysis used non-public data?
 
-svyby(~ anyeruse, ~ instype, subset(nhis_svy, agegrp == "18-64"), svymean,
+svyby(~ anyeruse, ~ instype, subset(nhis15_svy, agegrp == "18-64"), svymean,
       na.rm = TRUE) %>% SE()
+
+# 2014
+
+
+
 
 
