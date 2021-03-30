@@ -7,7 +7,6 @@ library(polypoly)
 library(ggthemes)
 library(broom)
 
-
 # set R to produce conservative standard errors instead of crashing
 # http://r-survey.r-forge.r-project.org/survey/exmample-lonely.html
 options(survey.lonely.psu = "adjust")
@@ -20,7 +19,7 @@ options(survey.lonely.psu = "adjust")
 percent <- function(x) 100 * x
 inv_logit <- function(x) exp(x) / (1 + exp(x))
 
-load(here("YRBSS data", "yrbs.Rdata"))
+load(here("YRBSS", "yrbs.Rdata"))
 
 # construct raceeth variable with four categories:
 # 1 = White, 2 = Black, 3 = Hispanic, 4 = All other nonmissing
@@ -215,7 +214,7 @@ tidy(rr_fit, conf.int = TRUE) %>%
 # LOOKS GOOD!
 rr_adj_fit <- 
   svyglm(I(smoke == "Yes") ~ seg1 + seg2, #+ sex + grade + raceeth, 
-         design = brfs_model, family = quasibinomial(log), 
+         design = brfs_seg, family = quasibinomial(log), 
          start = c(-0.5, rep(0, 2))) # 0, 9 if using covariates
 # TRY USING MODEL WITH COVARIATES, THEN MARGINAL MEANS WITH BOTH seg1 AND
 #   seg2 AS MARGINS--WOULD IT PRODUCE THE SAME RESULTS AS USING YEAR?
