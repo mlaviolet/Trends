@@ -54,9 +54,13 @@ nhis15_svy %>%
   mutate(across(starts_with("pct"), ~ 100 * .x))
 # point estimates OK, stderrs slightly off  
 # possibly because analysis used non-public data?
+# svyciprop with method logit affects CIs, not SEs
 
 svyby(~ anyeruse, ~ instype, subset(nhis15_svy, agegrp == "18-64"), svymean,
-      na.rm = TRUE) %>% SE()
+      na.rm = TRUE)
+
+svyby(~ anyeruse, ~ instype, subset(nhis15_svy, agegrp == "18-64"), 
+      svyciprop, method = "logit", na.rm = TRUE) %>% confint()
 
 # 2014
 
