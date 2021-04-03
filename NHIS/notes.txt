@@ -1,0 +1,9 @@
+Variables needed for insurance recodes
+
+OTHERPUB 2004-2004
+OTHPUB 2008
+CHIP
+SCHIP
+MEDICAID
+PRIVATE
+NOTCOV
