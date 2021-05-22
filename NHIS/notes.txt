@@ -7,3 +7,18 @@ SCHIP
 MEDICAID
 PRIVATE
 NOTCOV
+
+Coding into categories
+"mutually exclusive in a hierarchy—any private coverage, Medicaid coverage (includes "other public" or Children's Health Insurance Program [CHIP] coverage), or uninsured. Approximately 4% of the population aged 18–64 does not fall into one of these three categories"
+
+From personsx data
+srvy_yr
+otherpub, othpub
+chip, schip
+medicaid
+private
+notcov
+
+Make table of which variables appear each year
+
+
