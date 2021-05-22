@@ -1,0 +1,17 @@
+.Rproj.user
+.Rhistory
+*.RData
+.Ruserdata
+*.dat
+*.pdf
+*.mdb
+*.zip
+*.xlsx
+*.pptx
+*.rds
+samadult.exe
+personsx.exe
+*.sas7bcat
+*.sas7bdat
+
+

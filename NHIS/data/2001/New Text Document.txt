@@ -1,0 +1,31 @@
+
+Warning: 119492 parsing failures.
+row      col expected actual                                                                      file
+  1 WIC_FLAG  0 chars      0 'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/PERSONSX.DAT'
+  2 WIC_FLAG  0 chars      0 'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/PERSONSX.DAT'
+  4 WIC_FLAG  0 chars      0 'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/PERSONSX.DAT'
+  5 WIC_FLAG  0 chars      0 'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/PERSONSX.DAT'
+  8 WIC_FLAG  0 chars      0 'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/PERSONSX.DAT'
+... ........ ........ ...... .........................................................................
+See problems(...) for more details.
+
+nhis catalog entry 3 of 34 stored at 'C:/Users/michael.j.laviolette/Documents/NHIS/2001/personsx.rds'
+
+downloading from URL
+'https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2001/samadult.exe'
+to file
+'C:\Users\MICHAE~1.LAV\AppData\Local\Temp\Rtmp29xdSE\file2200171f135e'
+
+trying URL 'https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2001/samadult.exe'
+Content type 'application/octet-stream' length 3522352 bytes (3.4 MB)
+downloaded 3.4 MB
+
+Warning: 7928 parsing failures.
+row    col    expected      actual                                                                      file
+  3 TBKNOW 0 chars     0           'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/SAMADULT.DAT'
+  3 NA     598 columns 587 columns 'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/SAMADULT.DAT'
+ 11 TBKNOW 0 chars     0           'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/SAMADULT.DAT'
+ 11 NA     598 columns 587 columns 'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/SAMADULT.DAT'
+ 12 TBKNOW 0 chars     0           'C:/Users/MICHAE~1.LAV/AppData/Local/Temp/Rtmp29xdSE/unzips/SAMADULT.DAT'
+... ...... ........... ........... .........................................................................
+See problems(...) for more details.
