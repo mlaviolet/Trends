@@ -54,15 +54,36 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
     # dichotomize ER visits into 0 and 1+
     anyeruse = cut(ahernoy2, c(0, 1, 8), c("None", "One or more"),
                    right = FALSE, include.lowest = TRUE)) %>% 
-  # ADD INSURANCE RECODE
+  # INSURANCE RECODE
+  # "OR UNKNOWN ON SUCH COVERAGE"--SHOULD UNKNOWN BE TREATED AS "NO"?
+  # IF SO, CHANGE NA_real_ to 2 below
+  mutate(mcaid = case_when(medicaid %in% 1:2 ~ 1,
+                           medicaid == 3     ~ 2,
+                           TRUE              ~ NA_real_)) %>% 
+  mutate(chp = case_when(srvy_yr %in% 2000:2003 & chip == 1     ~ 1,
+                         srvy_yr %in% 2000:2003 & chip == 2     ~ 2,
+                         srvy_yr %in% 2004:2015 & chip %in% 1:2 ~ 1,
+                         srvy_yr %in% 2004:2015 & chip == 3     ~ 2,
+                         TRUE                                   ~ NA_real_)) %>% 
+  mutate(othpub = case_when(
+    srvy_yr %in% 2000:2003 & otherpub == 1     ~ 1,
+    srvy_yr %in% 2000:2003 & otherpub == 2     ~ 2,
+    srvy_yr %in% 2004:2015 & otherpub %in% 1:2 ~ 1,
+    srvy_yr %in% 2004:2015 & otherpub == 3     ~ 2,
+    TRUE                                       ~ NA_real_)) %>% 
+  mutate(anypub = case_when(mcaid == 1 | chp == 1 | othpub == 1 ~ 1,
+                            mcaid == 2 & chp == 2 & othpub == 2 ~ 2,
+                            TRUE                                ~ NA_real_))
+# TRANSLATE SAS CODE FOLLOWING "DICHOTOMIZED PRIVATE COVERAGE"
+
   # create survey object for analysis
-  as_survey_design(ids = psu, strata = c(srvy_yr, stratum), weight = wtfa_sa, 
-                   nest = TRUE)
+  # as_survey_design(ids = psu, strata = c(srvy_yr, stratum), weight = wtfa_sa,
+  #                  nest = TRUE)
 # CHECK THAT PSU, STRATA, AND WEIGHTS ARE CORRECT
 rm(nhis_04)
-# count(nhis_svy, srvy_yr)
+    
+chk4 <- count(nhis_svy, srvy_yr, anypub)
 # ADD ANALYSIS
-
 
 
 
