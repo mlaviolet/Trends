@@ -93,7 +93,7 @@ nhis_svy %>%
   mutate(across(starts_with("pct"), ~ 100 * .x))
 # seems consistently lower--should I count unknowns with Yes, as implied by
 #   notes in SAS code?
-  
+
 
 
 
