@@ -57,9 +57,9 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
   # INSURANCE RECODE
   # "OR UNKNOWN ON SUCH COVERAGE"--SHOULD UNKNOWN BE TREATED AS "NO"?
   # IF SO, CHANGE NA_real_ to 2 below
-  mutate(mcaid = case_when(medicaid %in% 1:2 ~ 1,
-                           medicaid == 3     ~ 2,
-                           TRUE              ~ NA_real_)) %>% 
+  # mutate(mcaid = case_when(medicaid %in% 1:2 ~ 1,
+  #                          medicaid == 3     ~ 2,
+  #                          TRUE              ~ NA_real_)) %>% 
   mutate(chp = case_when(srvy_yr %in% 2000:2003 & chip == 1     ~ 1,
                          srvy_yr %in% 2000:2003 & chip == 2     ~ 2,
                          srvy_yr %in% 2004:2015 & chip %in% 1:2 ~ 1,
@@ -70,21 +70,30 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
     srvy_yr %in% 2000:2003 & otherpub == 2     ~ 2,
     srvy_yr %in% 2004:2015 & otherpub %in% 1:2 ~ 1,
     srvy_yr %in% 2004:2015 & otherpub == 3     ~ 2,
-    TRUE                                       ~ NA_real_)) %>% 
-  mutate(anypub = case_when(mcaid == 1 | chp == 1 | othpub == 1 ~ 1,
-                            mcaid == 2 & chp == 2 & othpub == 2 ~ 2,
-                            TRUE                                ~ NA_real_))
-# TRANSLATE SAS CODE FOLLOWING "DICHOTOMIZED PRIVATE COVERAGE"
-
+    TRUE                                       ~ 9)) %>% 
+  mutate(mcaid = case_when(
+    medicaid %in% c(1:2, 7:9) | chp == 1 | othpub == 1 ~ 1,
+    medicaid == 3 & chp == 2 & othpub == 2     ~ 2,
+    TRUE                                       ~ 9)) %>% 
+  # TRANSLATE SAS CODE FOLLOWING "DICHOTOMIZED PRIVATE COVERAGE"
   # create survey object for analysis
-  # as_survey_design(ids = psu, strata = c(srvy_yr, stratum), weight = wtfa_sa,
-  #                  nest = TRUE)
+  as_survey_design(ids = psu, strata = c(srvy_yr, stratum), weight = wtfa_sa,
+                   nest = TRUE)
 # CHECK THAT PSU, STRATA, AND WEIGHTS ARE CORRECT
 rm(nhis_04)
     
-chk4 <- count(nhis_svy, srvy_yr, anypub)
+chk4 <- count(nhis_svy$variables, srvy_yr, anyeruse)
 # ADD ANALYSIS
 
+nhis_svy %>% 
+  filter(mcaid %in% c(1, 9)) %>% 
+  filter(!is.na(anyeruse)) %>% 
+  group_by(srvy_yr) %>% 
+  summarize(pct = survey_mean(anyeruse == "One or more")) %>% 
+  mutate(across(starts_with("pct"), ~ 100 * .x))
+# seems consistently lower--should I count unknowns with Yes, as implied by
+#   notes in SAS code?
+  
 
 
 
