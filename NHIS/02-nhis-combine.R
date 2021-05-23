@@ -7,13 +7,13 @@ library(srvyr)
 
 # dir(here("NHIS", "data"))
 
-# for 2004 only, psu and stratum variables are in the person file instead of
+# for 2004 only, psu, stratum, age variables are in the person file instead of
 #   the sample adult file--process 2004 separately
 person_04 <- readRDS(here("NHIS", "data", "2004", "personsx.rds")) %>% 
   select(srvy_yr, hhx, fmx, ends_with("px"), ends_with("pub"), psu, stratum,
-         ends_with("chip"), medicaid, private, notcov)
+         ends_with("chip"), medicaid, private, notcov, age_p)
 samadult_04 <- readRDS(here("NHIS", "data", "2004", "samadult.rds")) %>% 
-  select(srvy_yr, hhx, fmx, ends_with("px"), wtfa_sa, ahernoy2,
+  select(srvy_yr, hhx, fmx, ends_with("px"), wtfa_sa, ahernoy2, 
          starts_with("strat"))
 nhis_04 <- inner_join(person_04, samadult_04, 
                       by = c("srvy_yr", "hhx", "fmx", "fpx"))
@@ -27,7 +27,7 @@ readNHIS <- function(yr) {
   samadult <- readRDS(here("NHIS", "data", paste0("20", yr), 
                            "samadult.rds")) %>% 
     select(srvy_yr, hhx, fmx, ends_with("px"), starts_with("wtfa"), ahernoy2,
-           starts_with("psu"), starts_with("strat"))
+           starts_with("psu"), starts_with("strat"), age_p)
   inner_join(person, samadult)
   }
 
@@ -46,7 +46,14 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
   # same for otherpub and chip variables
   mutate(otherpub = if_else(srvy_yr %in% 2000:2007, otherpub, othpub),
          chip = if_else(srvy_yr %in% 2000:2003, chip, schip)) %>% 
-  select(-othpub, -schip) %>% 
+  select(-c(othpub, schip)) %>% 
+  # select(-c(hhx, fmx, px, fpx)) %>% 
+  mutate(
+    # group ages by 18-64 and 65+
+    agegrp = cut(age_p, c(18, 65, Inf), c("18-64", "65+"),  right = FALSE), 
+    # dichotomize ER visits into 0 and 1+
+    anyeruse = cut(ahernoy2, c(0, 1, 8), c("None", "One or more"),
+                   right = FALSE, include.lowest = TRUE)) %>% 
   # ADD INSURANCE RECODE
   # create survey object for analysis
   as_survey_design(ids = psu, strata = c(srvy_yr, stratum), weight = wtfa_sa, 
