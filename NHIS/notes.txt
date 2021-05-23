@@ -20,5 +20,9 @@ private
 notcov
 
 Make table of which variables appear each year
+variables MEDICAID, CHIP, OTHER PUB
+1, 2 = yes
+3 = no
+7, 8, 9 = NA
 
 
