@@ -13,7 +13,7 @@ person_04 <- readRDS(here("NHIS", "data", "2004", "personsx.rds")) %>%
   select(srvy_yr, hhx, fmx, ends_with("px"), ends_with("pub"), psu, stratum,
          ends_with("chip"), medicaid, private, notcov, age_p)
 samadult_04 <- readRDS(here("NHIS", "data", "2004", "samadult.rds")) %>% 
-  select(srvy_yr, hhx, fmx, ends_with("px"), wtfa_sa, ahernoy2, 
+  select(srvy_yr, hhx, fmx, ends_with("px"), starts_with("wtfa"), ahernoy2, 
          starts_with("strat"))
 nhis_04 <- inner_join(person_04, samadult_04, 
                       by = c("srvy_yr", "hhx", "fmx", "fpx"))
@@ -57,24 +57,30 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
   # INSURANCE RECODE
   # "OR UNKNOWN ON SUCH COVERAGE"--SHOULD UNKNOWN BE TREATED AS "NO"?
   # IF SO, CHANGE NA_real_ to 2 below
+  mutate(mcaid = case_when(
+    srvy_yr %in% 2000:2003 & (medicaid %in% 1:2 | otherpub == 1 | chip == 1) ~ 1,
+    srvy_yr %in% 2000:2003 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
+    srvy_yr %in% 2004:2015 & (medicaid %in% 1:2 | otherpub %in% 1:2 | chip %in% 1:2) ~ 1,
+    srvy_yr %in% 2004:2015 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
+    TRUE ~ 2)) %>% 
   # mutate(mcaid = case_when(medicaid %in% 1:2 ~ 1,
   #                          medicaid == 3     ~ 2,
   #                          TRUE              ~ NA_real_)) %>% 
-  mutate(chp = case_when(srvy_yr %in% 2000:2003 & chip == 1     ~ 1,
-                         srvy_yr %in% 2000:2003 & chip == 2     ~ 2,
-                         srvy_yr %in% 2004:2015 & chip %in% 1:2 ~ 1,
-                         srvy_yr %in% 2004:2015 & chip == 3     ~ 2,
-                         TRUE                                   ~ NA_real_)) %>% 
-  mutate(othpub = case_when(
-    srvy_yr %in% 2000:2003 & otherpub == 1     ~ 1,
-    srvy_yr %in% 2000:2003 & otherpub == 2     ~ 2,
-    srvy_yr %in% 2004:2015 & otherpub %in% 1:2 ~ 1,
-    srvy_yr %in% 2004:2015 & otherpub == 3     ~ 2,
-    TRUE                                       ~ 9)) %>% 
-  mutate(mcaid = case_when(
-    medicaid %in% c(1:2, 7:9) | chp == 1 | othpub == 1 ~ 1,
-    medicaid == 3 & chp == 2 & othpub == 2     ~ 2,
-    TRUE                                       ~ 9)) %>% 
+  # mutate(chp = case_when(srvy_yr %in% 2000:2003 & chip == 1     ~ 1,
+  #                        srvy_yr %in% 2000:2003 & chip == 2     ~ 2,
+  #                        srvy_yr %in% 2004:2015 & chip %in% 1:2 ~ 1,
+  #                        srvy_yr %in% 2004:2015 & chip == 3     ~ 2,
+  #                        TRUE                                   ~ NA_real_)) %>% 
+  # mutate(othpub = case_when(
+  #   srvy_yr %in% 2000:2003 & otherpub == 1     ~ 1,
+  #   srvy_yr %in% 2000:2003 & otherpub == 2     ~ 2,
+  #   srvy_yr %in% 2004:2015 & otherpub %in% 1:2 ~ 1,
+  #   srvy_yr %in% 2004:2015 & otherpub == 3     ~ 2,
+  #   TRUE                                       ~ 9)) %>% 
+  # mutate(mcaid = case_when(
+  #   medicaid %in% c(1:2, 7:9) | chp == 1 | othpub == 1 ~ 1,
+  #   medicaid == 3 & chp == 2 & othpub == 2     ~ 2,
+  #   TRUE                                       ~ 9)) %>% 
   # TRANSLATE SAS CODE FOLLOWING "DICHOTOMIZED PRIVATE COVERAGE"
   # create survey object for analysis
   as_survey_design(ids = psu, strata = c(srvy_yr, stratum), weight = wtfa_sa,
@@ -82,14 +88,15 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
 # CHECK THAT PSU, STRATA, AND WEIGHTS ARE CORRECT
 rm(nhis_04)
     
-chk4 <- count(nhis_svy$variables, srvy_yr, anyeruse)
+chk4 <- count(nhis_svy$variables, srvy_yr, medicaid)
 # ADD ANALYSIS
 
 nhis_svy %>% 
-  filter(mcaid %in% c(1, 9)) %>% 
-  filter(!is.na(anyeruse)) %>% 
-  group_by(srvy_yr) %>% 
-  summarize(pct = survey_mean(anyeruse == "One or more")) %>% 
+  filter(mcaid == 1) %>% 
+  # filter(!is.na(anyeruse)) %>% 
+  # filter(agegrp == "18-64") %>% 
+  group_by(agegrp, srvy_yr) %>% 
+  summarize(pct = survey_mean(anyeruse == "One or more", na.rm = TRUE)) %>% 
   mutate(across(starts_with("pct"), ~ 100 * .x))
 # seems consistently lower--should I count unknowns with Yes, as implied by
 #   notes in SAS code?
