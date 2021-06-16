@@ -1,90 +1,68 @@
-# combine YRBSS national from 1991-2011 into a single multiyear table
-
 library(here)
 library(tidyverse)
 library(srvyr)
 
-
-
-# this function reads the person and sample adult files for each of the other
-#   years and joins them into an annual data table 
+# this function reads the national files for each year and joins them into an 
+#   annual data table 
 # modify to add ever-smoked question as second argument
 readYRBS <- function(yr) {
- readRDS(here("YRBSS", "data", paste(1991, "main.rds")))
+  readRDS(here("YRBSS", "data", paste(yr, "main.rds"))) %>% 
+    mutate(svy_year = yr) %>% 
+    # # add code to harmonize ever-smoked, grade, race-Hispanic, sex as below
+    mutate(smoking = case_when(
+      svy_year == 1991                 ~ q22,
+      svy_year %in% c(1993, 2001:2009) ~ q28,
+      svy_year %in% c(1995:1997)       ~ q26,
+      svy_year == 1999                 ~ q27,
+      svy_year == 2011                 ~ q29)) %>%
+    # mutate(race_eth = case_when(
+    #   # 1991-1997
+    #   svy_year %in% 1991:1997 & q4 %in% 1:3 ~ q4,
+    #   svy_year %in% 1991:1997 & q4 %in% 4:6 ~ 4,
+    #   # 1999- 2005
+    #   svy_year %in% 1999:2005 & q4 == 6               ~ 1,
+    #   svy_year %in% 1999:2005 & q4 == 3               ~ 2,
+    #   svy_year %in% 1999:2005 & q4 %in% c(4, 7)       ~ 3,
+    #   svy_year %in% 1999:2005 & q4 %in% c(1, 2, 5, 8) ~ 4,
+    # # 2007-2011
+    # # svy_year %in% 2007:2011 & raceeth == 5            ~ 1,
+    # # svy_year %in% 2007:2011 & raceeth == 3            ~ 2,
+    # # svy_year %in% 2007:2011 & raceeth %in% 6:7        ~ 3,
+    # # svy_year %in% 2007:2011 & raceeth %in% c(1,2,4,8) ~ 4,
+    # TRUE ~ NA_real_))
+    select(svy_year, smoking)
+    # relocate(svy_year)
   }
 
-chk1 <- readYRBS("1991")
-# combine 16 yearly tables into a single table and make into survey object
-nhis_svy <- map_dfr(as.character(seq(1991, 2011, 2)), readYRBS) %>% 
-  unnest(cols = srvy_yr) %>% 
-  # add 2004 to table and arrange in year order
-  bind_rows(nhis_04) %>% 
-  arrange(srvy_yr, hhx) %>% 
-  # remove extraneous variable
-  select(-smknotpx) %>% 
-  # collect psu and stratum variables into a single column for each
-  mutate(psu = if_else(srvy_yr %in% 2000:2005, psu, psu_p),
-         stratum = if_else(srvy_yr %in% 2000:2005, stratum, strat_p)) %>% 
-  select(-psu_p, -strat_p) %>% 
-  # same for otherpub and chip variables
-  mutate(otherpub = if_else(srvy_yr %in% 2000:2007, otherpub, othpub),
-         chip = if_else(srvy_yr %in% 2000:2003, chip, schip)) %>% 
-  select(-c(othpub, schip)) %>% 
-  # select(-c(hhx, fmx, px, fpx)) %>% 
-  mutate(
-    # group ages by 18-64 and 65+
-    agegrp = cut(age_p, c(18, 65, Inf), c("18-64", "65+"),  right = FALSE), 
-    # dichotomize ER visits into 0 and 1+
-    anyeruse = cut(ahernoy2, c(0, 1, 8), c("None", "One or more"),
-                   right = FALSE, include.lowest = TRUE)) %>% 
-  # INSURANCE RECODE
-  # "OR UNKNOWN ON SUCH COVERAGE"--SHOULD UNKNOWN BE TREATED AS "NO"?
-  # IF SO, CHANGE NA_real_ to 2 below
-  mutate(mcaid = case_when(
-    srvy_yr %in% 2000:2003 & (medicaid %in% 1:2 | otherpub == 1 | chip == 1) ~ 1,
-    srvy_yr %in% 2000:2003 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
-    srvy_yr %in% 2004:2015 & (medicaid %in% 1:2 | otherpub %in% 1:2 | chip %in% 1:2) ~ 1,
-    srvy_yr %in% 2004:2015 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
-    TRUE ~ 2)) %>% 
-  # mutate(mcaid = case_when(medicaid %in% 1:2 ~ 1,
-  #                          medicaid == 3     ~ 2,
-  #                          TRUE              ~ NA_real_)) %>% 
-  # mutate(chp = case_when(srvy_yr %in% 2000:2003 & chip == 1     ~ 1,
-  #                        srvy_yr %in% 2000:2003 & chip == 2     ~ 2,
-  #                        srvy_yr %in% 2004:2015 & chip %in% 1:2 ~ 1,
-  #                        srvy_yr %in% 2004:2015 & chip == 3     ~ 2,
-  #                        TRUE                                   ~ NA_real_)) %>% 
-  # mutate(othpub = case_when(
-  #   srvy_yr %in% 2000:2003 & otherpub == 1     ~ 1,
-  #   srvy_yr %in% 2000:2003 & otherpub == 2     ~ 2,
-  #   srvy_yr %in% 2004:2015 & otherpub %in% 1:2 ~ 1,
-  #   srvy_yr %in% 2004:2015 & otherpub == 3     ~ 2,
-  #   TRUE                                       ~ 9)) %>% 
-  # mutate(mcaid = case_when(
-  #   medicaid %in% c(1:2, 7:9) | chp == 1 | othpub == 1 ~ 1,
-  #   medicaid == 3 & chp == 2 & othpub == 2     ~ 2,
-  #   TRUE                                       ~ 9)) %>% 
-  # TRANSLATE SAS CODE FOLLOWING "DICHOTOMIZED PRIVATE COVERAGE"
-  # create survey object for analysis
-  as_survey_design(ids = psu, strata = c(srvy_yr, stratum), weight = wtfa_sa,
-                   nest = TRUE)
-# CHECK THAT PSU, STRATA, AND WEIGHTS ARE CORRECT
-rm(nhis_04)
-    
-chk4 <- count(nhis_svy$variables, srvy_yr, medicaid)
-# ADD ANALYSIS
+chk1 <- readYRBS(1991)
+yrbss_svy <- map_dfr(seq(1991, 2011, 2), readYRBS) %>% 
+  unnest(cols = svy_year) 
 
-er_use <- nhis_svy %>% 
-  filter(mcaid == 1) %>% 
-  # filter(!is.na(anyeruse)) %>% 
-  # filter(agegrp == "18-64") %>% 
-  group_by(agegrp, srvy_yr) %>% 
-  summarize(pct = survey_mean(anyeruse == "One or more", na.rm = TRUE)) %>% 
-  mutate(across(starts_with("pct"), ~ 100 * .x))
-# seems consistently lower--should I count unknowns with Yes, as implied by
-#   notes in SAS code?
-
-
-
-
-
+chk1 <- count(yrbss_svy, svy_year, smoking)
+# this works
+# construct year-specific recodes so that
+# "ever smoked a cigarette" // grade // sex // race-ethnicity align across 
+#   years
+# y <- transform(y,
+#                smoking = 
+#                  as.numeric(ifelse(year == 1991, q23,
+#                                    ifelse(year %in% c(1993, 2001:2009), q28,
+#                                           ifelse(year %in% 1995:1997, q26,
+#                                                  ifelse(year %in% 1999, q27,
+#                                                         ifelse(year %in% 2011, q29, NA)))))),
+#                raceeth = ifelse(year %in% 1991:1997,
+#                                 ifelse(q4 %in% 1:3, q4, 
+#                                        ifelse(q4 %in% 4:6, 4, NA)),
+#                                 ifelse(year %in% 1999:2005,
+#                                        ifelse(q4 %in% 6, 1,
+#                                               ifelse(q4 %in% 3, 2,
+#                                                      ifelse(q4 %in% c(4, 7), 3,
+#                                                             ifelse( q4 %in% c(1, 2, 5, 8), 4, NA)))),
+#                                        ifelse(year %in% 2007:2011,
+#                                               ifelse(raceeth %in% 5, 1,
+#                                                      ifelse(raceeth %in% 3, 2,
+#                                                             ifelse(raceeth %in% c(6, 7), 3,
+#                                                                    ifelse(raceeth %in% c(1, 2, 4, 8), 4, NA)))),
+#                                               NA))),
+#                grade = ifelse(q3 == 5, NA, as.numeric(q3)),
+#                sex = ifelse(q2 %in% 1:2, q2, NA))
