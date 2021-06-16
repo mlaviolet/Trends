@@ -49,7 +49,8 @@ nhis15_svy <- inner_join(person_15, samadult_15,
 nhis15_svy %>%
   filter(agegrp == "18-64") %>% 
   group_by(instype) %>%
-  summarize(pct = survey_mean(anyeruse == "One or more", na.rm = TRUE)) %>% 
+  summarize(n = unweighted(n()),
+            pct = survey_mean(anyeruse == "One or more", na.rm = TRUE)) %>% 
   drop_na() %>% 
   mutate(across(starts_with("pct"), ~ 100 * .x))
 # point estimates OK, stderrs slightly off  

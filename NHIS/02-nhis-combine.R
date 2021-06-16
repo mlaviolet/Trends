@@ -91,7 +91,7 @@ rm(nhis_04)
 chk4 <- count(nhis_svy$variables, srvy_yr, medicaid)
 # ADD ANALYSIS
 
-nhis_svy %>% 
+er_use <- nhis_svy %>% 
   filter(mcaid == 1) %>% 
   # filter(!is.na(anyeruse)) %>% 
   # filter(agegrp == "18-64") %>% 
