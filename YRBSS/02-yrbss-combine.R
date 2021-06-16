@@ -38,7 +38,7 @@ chk1 <- readYRBS(1991)
 yrbss_svy <- map_dfr(seq(1991, 2011, 2), readYRBS) %>% 
   unnest(cols = svy_year) 
 
-chk1 <- count(yrbss_svy, svy_year, smoking)
+chk2 <- count(yrbss_svy, svy_year, smoking)
 # this works
 # construct year-specific recodes so that
 # "ever smoked a cigarette" // grade // sex // race-ethnicity align across 
