@@ -1,6 +1,9 @@
 library(here)
 library(tidyverse)
+library(survey)
 library(srvyr)
+
+options(survey.lonely.psu = "adjust")
 
 # this function reads the national files for each year and joins them into an 
 #   annual data table 
@@ -67,6 +70,14 @@ yrbss_svy <- bind_rows(yrbss1_dat, yrbss2_dat) %>%
 rm(readYRBS1, readYRBS2, yrbss1_dat, yrbss2_dat)
   
 # BEGIN ANALYSIS ----------------------------------------------------------
+
+marginals <- 
+  svyglm(formula = I(smoking == "Yes") ~sex + race_eth + grade,
+         design = yrbss_svy, family = quasibinomial)
+
+# Second, run these marginals through the svypredmeans function 
+means_for_joinpoint <- svypredmeans(marginals, ~ factor(svy_year))
+means_for_joinpoint
 
 # recodes from Damico
 # add code to harmonize ever-smoked, grade, race-Hispanic, sex as below
