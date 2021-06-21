@@ -19,5 +19,3 @@ df_list <- setNames(df_list, paste0("YRBSS", seq(1991, 2019, 2)))
 lapply(df_list, dim)
 
 save(yrbss_cat, df_list, file = "YRBSS.Rdata")
-
-

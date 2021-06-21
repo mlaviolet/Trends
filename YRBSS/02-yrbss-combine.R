@@ -1,7 +1,11 @@
+# reproduce results from "Conducting Trend Analyses of YRBS data" (2014 ed.)
+
 library(here)
 library(tidyverse)
 library(survey)
 library(srvyr)
+library(polypoly)
+library(segmented)
 
 options(survey.lonely.psu = "adjust")
 
@@ -64,21 +68,31 @@ yrbss_svy <- bind_rows(yrbss1_dat, yrbss2_dat) %>%
   # filter(!is.na(smoking)) %>% 
   # one extra row in 1997 read as missing--remove
   filter(!is.na(psu)) %>% 
+  poly_add_columns(svy_year, 3) %>% 
   as_survey_design(ids = psu, strata = c(stratum, svy_year),
                    weights = weight, nest = TRUE)
 
 rm(readYRBS1, readYRBS2, yrbss1_dat, yrbss2_dat)
   
 # BEGIN ANALYSIS ----------------------------------------------------------
+# unadjusted estimates; matches results in CDC document
+yrbss_svy %>% 
+  group_by(svy_year) %>% 
+  summarize(pct = survey_mean(smoking == "Yes", na.rm = TRUE))
 
 marginals <- 
-  svyglm(formula = I(smoking == "Yes") ~sex + race_eth + grade,
+  svyglm(I(smoking == "Yes") ~ sex + race_eth + grade + svy_year1 + svy_year2 + svy_year3,
          design = yrbss_svy, family = quasibinomial)
 
 # Second, run these marginals through the svypredmeans function 
-means_for_joinpoint <- svypredmeans(marginals, ~ factor(svy_year))
+means_for_joinpoint <- svypredmeans(marginals, ~ factor(svy_year)) %>% 
+  as_tibble(bind_cols(coef(.), SE(.)), rownames = "svy_year") %>% 
+  mutate(wgt = (mean / SE ) ^ 2) 
 means_for_joinpoint
-
+# coef() gives point estimates; SE() for standard errors
+# RESUME HERE
+model1 <- lm(log(mean) ~ svy_year, weights = wgt, data = means_for_joinpoint)
+model1_seg <- segmented(model1, npsi = 1)
 # recodes from Damico
 # add code to harmonize ever-smoked, grade, race-Hispanic, sex as below
 # mutate(smoking = case_when(
