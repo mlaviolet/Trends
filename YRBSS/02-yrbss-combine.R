@@ -128,3 +128,16 @@ model1_seg <- segmented(model1, npsi = 1)
 #                                               NA))),
 #                grade = ifelse(q3 == 5, NA, as.numeric(q3)),
 #                sex = ifelse(q2 %in% 1:2, q2, NA))
+
+# PLOT POINTS WITH SEGMENTED LINES ADDED
+# augment(indicator1_2_seg) %>% 
+# mutate(Year = seg1 + seg2 + seg3) %>% 
+#   ggplot(aes(x = Year, y = exp(`log(adj_rate)`))) +
+#   labs(title = "Mortality from diseases of the heart",
+#        x = NULL, y = "Adjusted rate per 100,000",
+#        caption = "Data source: New Hampshire Vital Records") +
+#   geom_point() +
+#   # scale_y_continuous(breaks = seq(140, 240, 20)) +
+#   geom_line(aes(y = exp(`.fitted`))) +
+#   theme_bw() +
+#   theme(aspect.ratio = 0.62)
