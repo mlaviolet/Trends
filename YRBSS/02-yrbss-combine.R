@@ -1,4 +1,7 @@
 # reproduce results from "Conducting Trend Analyses of YRBS data" (2014 ed.)
+# combine data from 1991, 1993, ..., 2011 into a single data frame
+
+# source("01-yrbss-download.R")
 
 library(here)
 library(tidyverse)
@@ -8,14 +11,22 @@ library(polypoly)
 library(segmented)
 
 options(survey.lonely.psu = "adjust")
-
 # this function reads the national files for each year and joins them into an 
 #   annual data table 
-# read YRBSS data files 1991-2005 to get around incompatible data types
+# some variable with the same names can't be stacked due to incompatible
+# data types--process 1991-2005 and 2007 separately, then row-bind the two
+#   resulting tables to get around incompatible data types
+
+# process 1991-2005
 readYRBS1 <- function(yr) {
+  # read downloaded .rbs file
   readRDS(here("YRBSS", "data", paste(yr, "main.rds"))) %>% 
+    # add year columns
     mutate(svy_year = yr) %>%
+    # variables for ever smoked cigarette
     mutate(across(c(q2, q3, q4, q23, q26, q27, q28), as.numeric)) %>% 
+    # recode race-Hispanic origin into 1 = White, 2 = Black, 3 = Hispanic,
+    #   4 = Other
     mutate(race_eth = case_when(
       # 1991-1997
       svy_year %in% 1991:1997 & q4 %in% 1:3 ~ q4,
@@ -33,7 +44,7 @@ readYRBS1 <- function(yr) {
 yrbss1_dat <- map_dfr(seq(1991, 2005, 2), readYRBS1) %>% 
   unnest(cols = svy_year) 
 
-# read YRBSS data files 2007-2011
+# similar processing for 2007-2011
 readYRBS2 <- function(yr) {
   readRDS(here("YRBSS", "data", paste(yr, "main.rds"))) %>% 
     mutate(svy_year = yr) %>%
@@ -51,6 +62,8 @@ readYRBS2 <- function(yr) {
 yrbss2_dat <- map_dfr(seq(2007, 2011, 2), readYRBS2) %>% 
   unnest(cols = svy_year) 
 
+# stack the two tables into one, create ever-smoked variable, make sex, grade,
+#   smoking, race-hispanic into factors
 yrbss_svy <- bind_rows(yrbss1_dat, yrbss2_dat) %>% 
   # add code to harmonize ever-smoked, grade, race-Hispanic, sex as below
   mutate(smoking = case_when(
@@ -68,20 +81,24 @@ yrbss_svy <- bind_rows(yrbss1_dat, yrbss2_dat) %>%
   # filter(!is.na(smoking)) %>% 
   # one extra row in 1997 read as missing--remove
   filter(!is.na(psu)) %>% 
+  # add orthogonal polynomials to degree 3
   poly_add_columns(svy_year, 3) %>% 
+  # create survey object for analysis
   as_survey_design(ids = psu, strata = c(stratum, svy_year),
                    weights = weight, nest = TRUE)
-
+# clean up
 rm(readYRBS1, readYRBS2, yrbss1_dat, yrbss2_dat)
-  
-# BEGIN ANALYSIS ----------------------------------------------------------
-# unadjusted estimates; matches results in CDC document
+
+# check that unadjusted estimates match those in CDC document
+# looks good!
+
 yrbss_svy %>% 
   group_by(svy_year) %>% 
   summarize(pct = survey_mean(smoking == "Yes", na.rm = TRUE))
 
+# BEGIN ANALYSIS ----------------------------------------------------------
 marginals <- 
-  svyglm(I(smoking == "Yes") ~ sex + race_eth + grade + svy_year1 + svy_year2 + svy_year3,
+  svyglm(I(smoking == "Yes") ~ sex + race_eth + grade,
          design = yrbss_svy, family = quasibinomial)
 
 # Second, run these marginals through the svypredmeans function 
@@ -93,41 +110,7 @@ means_for_joinpoint
 # RESUME HERE
 model1 <- lm(log(mean) ~ svy_year, weights = wgt, data = means_for_joinpoint)
 model1_seg <- segmented(model1, npsi = 1)
-# recodes from Damico
-# add code to harmonize ever-smoked, grade, race-Hispanic, sex as below
-# mutate(smoking = case_when(
-#   svy_year == 1991                 ~ q23,
-#   svy_year %in% c(1993, 2001:2009) ~ q28,
-#   svy_year %in% c(1995:1997)       ~ q26,
-#   svy_year == 1999                 ~ q27,
-#   svy_year == 2011                 ~ q29)) %>%
 
-# construct year-specific recodes so that
-# "ever smoked a cigarette" // grade // sex // race-ethnicity align across 
-#   years
-# y <- transform(y,
-#                smoking = 
-#                  as.numeric(ifelse(year == 1991, q23,
-#                                    ifelse(year %in% c(1993, 2001:2009), q28,
-#                                           ifelse(year %in% 1995:1997, q26,
-#                                                  ifelse(year %in% 1999, q27,
-#                                                         ifelse(year %in% 2011, q29, NA)))))),
-#                raceeth = ifelse(year %in% 1991:1997,
-#                                 ifelse(q4 %in% 1:3, q4, 
-#                                        ifelse(q4 %in% 4:6, 4, NA)),
-#                                 ifelse(year %in% 1999:2005,
-#                                        ifelse(q4 %in% 6, 1,
-#                                               ifelse(q4 %in% 3, 2,
-#                                                      ifelse(q4 %in% c(4, 7), 3,
-#                                                             ifelse( q4 %in% c(1, 2, 5, 8), 4, NA)))),
-#                                        ifelse(year %in% 2007:2011,
-#                                               ifelse(raceeth %in% 5, 1,
-#                                                      ifelse(raceeth %in% 3, 2,
-#                                                             ifelse(raceeth %in% c(6, 7), 3,
-#                                                                    ifelse(raceeth %in% c(1, 2, 4, 8), 4, NA)))),
-#                                               NA))),
-#                grade = ifelse(q3 == 5, NA, as.numeric(q3)),
-#                sex = ifelse(q2 %in% 1:2, q2, NA))
 
 # PLOT POINTS WITH SEGMENTED LINES ADDED
 # augment(indicator1_2_seg) %>% 
