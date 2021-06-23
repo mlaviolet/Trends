@@ -25,4 +25,10 @@ variables MEDICAID, CHIP, OTHER PUB
 3 = no
 7, 8, 9 = NA
 
+Lead author of NCHS trend analysis guidelines
+Deborah D. Ingram
+ddi1@cdc.gov
+301.458.4733
+
+
 
