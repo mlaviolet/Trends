@@ -27,12 +27,13 @@ readNHIS <- function(yr) {
   samadult <- readRDS(here("NHIS", "data", paste0("20", yr), 
                            "samadult.rds")) %>% 
     select(srvy_yr, hhx, fmx, ends_with("px"), starts_with("wtfa"), ahernoy2,
-           starts_with("psu"), starts_with("strat"), age_p)
+           starts_with("psu"), starts_with("strat"), age_p,
+           ends_with("chip"), ends_with("pub"))
   inner_join(person, samadult)
   }
 
 # combine 16 yearly tables into a single table and make into survey object
-nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>% 
+nhis_dat <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>% 
   unnest(cols = srvy_yr) %>% 
   # add 2004 to table and arrange in year order
   bind_rows(nhis_04) %>% 
@@ -44,9 +45,9 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
          stratum = if_else(srvy_yr %in% 2000:2005, stratum, strat_p)) %>% 
   select(-psu_p, -strat_p) %>% 
   # same for otherpub and chip variables
-  mutate(otherpub = if_else(srvy_yr %in% 2000:2007, otherpub, othpub),
-         chip = if_else(srvy_yr %in% 2000:2003, chip, schip)) %>% 
-  select(-c(othpub, schip)) %>% 
+  # mutate(otherpub = if_else(srvy_yr %in% 2000:2007, otherpub, othpub),
+  #        chip = if_else(srvy_yr %in% 2000:2003, chip, schip)) %>% 
+  # select(-c(othpub, schip)) %>% 
   # select(-c(hhx, fmx, px, fpx)) %>% 
   mutate(
     # group ages by 18-64 and 65+
@@ -62,7 +63,7 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
     srvy_yr %in% 2000:2003 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
     srvy_yr %in% 2004:2015 & (medicaid %in% 1:2 | otherpub %in% 1:2 | chip %in% 1:2) ~ 1,
     srvy_yr %in% 2004:2015 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
-    TRUE ~ 2)) %>% 
+    TRUE ~ 2)) 
   # mutate(mcaid = case_when(medicaid %in% 1:2 ~ 1,
   #                          medicaid == 3     ~ 2,
   #                          TRUE              ~ NA_real_)) %>% 
@@ -83,23 +84,30 @@ nhis_svy <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
   #   TRUE                                       ~ 9)) %>% 
   # TRANSLATE SAS CODE FOLLOWING "DICHOTOMIZED PRIVATE COVERAGE"
   # create survey object for analysis
-  as_survey_design(ids = psu, strata = c(srvy_yr, stratum), weight = wtfa_sa,
-                   nest = TRUE)
+
+nhis_svy <- as_survey_design(nhis_dat, ids = psu, strata = c(srvy_yr, stratum),
+                             weight = wtfa_sa, nest = TRUE)
+nhis_dat %>% 
+  mutate(across(c(agegrp, anyeruse), as.numeric)) %>% 
+  select(srvy_yr, age_p, otherpub, othpub, chip, schip, medicaid, private, 
+         notcov, anyeruse, psu, stratum, wtfa_sa) %>% 
+  write.csv(here("NHIS", "data", "nhis.csv"), row.names = FALSE, na = ".")
+
 # CHECK THAT PSU, STRATA, AND WEIGHTS ARE CORRECT
 rm(nhis_04)
     
-chk4 <- count(nhis_svy$variables, srvy_yr, medicaid)
-# ADD ANALYSIS
-
-er_use <- nhis_svy %>% 
-  filter(mcaid == 1) %>% 
-  # filter(!is.na(anyeruse)) %>% 
-  # filter(agegrp == "18-64") %>% 
-  group_by(agegrp, srvy_yr) %>% 
-  summarize(pct = survey_mean(anyeruse == "One or more", na.rm = TRUE)) %>% 
-  mutate(across(starts_with("pct"), ~ 100 * .x))
-# seems consistently lower--should I count unknowns with Yes, as implied by
-#   notes in SAS code?
+# chk4 <- count(nhis_svy$variables, srvy_yr, medicaid)
+# # ADD ANALYSIS
+# 
+# er_use <- nhis_svy %>% 
+#   filter(mcaid == 1) %>% 
+#   # filter(!is.na(anyeruse)) %>% 
+#   # filter(agegrp == "18-64") %>% 
+#   group_by(agegrp, srvy_yr) %>% 
+#   summarize(pct = survey_mean(anyeruse == "One or more", na.rm = TRUE)) %>% 
+#   mutate(across(starts_with("pct"), ~ 100 * .x))
+# # seems consistently lower--should I count unknowns with Yes, as implied by
+# #   notes in SAS code?
 
 
 
