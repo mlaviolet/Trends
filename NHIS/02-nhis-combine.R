@@ -54,16 +54,44 @@ nhis_dat <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
     agegrp = cut(age_p, c(18, 65, Inf), c("18-64", "65+"),  right = FALSE), 
     # dichotomize ER visits into 0 and 1+
     anyeruse = cut(ahernoy2, c(0, 1, 8), c("None", "One or more"),
-                   right = FALSE, include.lowest = TRUE)) %>% 
+                   right = FALSE, include.lowest = TRUE))
   # INSURANCE RECODE
+nhis_dat <- nhis_dat %>% 
+  mutate(otherpub = if_else(srvy_yr > 2007, othpub, otherpub),
+         chip = if_else(srvy_yr > 2003, schip, chip)) %>% 
   # "OR UNKNOWN ON SUCH COVERAGE"--SHOULD UNKNOWN BE TREATED AS "NO"?
   # IF SO, CHANGE NA_real_ to 2 below
   mutate(mcaid = case_when(
     srvy_yr %in% 2000:2003 & (medicaid %in% 1:2 | otherpub == 1 | chip == 1) ~ 1,
+    srvy_yr %in% 2000:2003 & (medicaid == 3 | otherpub == 2 | chip == 2) ~ 2,
     srvy_yr %in% 2000:2003 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
     srvy_yr %in% 2004:2015 & (medicaid %in% 1:2 | otherpub %in% 1:2 | chip %in% 1:2) ~ 1,
+    srvy_yr %in% 2004:2015 & (medicaid == 3 | otherpub == 3 | chip == 3) ~ 2,
     srvy_yr %in% 2004:2015 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
-    TRUE ~ 2)) 
+    TRUE ~ 9)) %>% 
+  mutate(pricov = case_when(private %in% 1:2 ~ 1,
+                            private == 3 ~ 2,
+                            private > 3 ~ 3,
+                            TRUE ~ NA_real_)) %>% 
+  mutate(instype = case_when(
+    notcov == 1 & pricov == 2 & mcaid == 2 ~ 1,
+    notcov == 2 & pricov == 2 & mcaid == 1 ~ 2,
+    notcov == 2 & pricov == 1              ~ 3,
+    notcov == 2 & pricov == 2 & mcaid == 2 ~ 4,
+    TRUE ~ NA_real_),
+    instype = factor(instype, 1:4, 
+                     c("Uninsured", "Medicaid", "Private", "Other"))) 
+  
+
+# check unweighted counts for age 18-64
+n_18_64 <- nhis_dat %>% 
+  filter(agegrp == "18-64") %>% 
+  count(srvy_yr, instype)
+
+  
+    # srvy_yr %in% 2004:2015 & (medicaid %in% 1:2 | otherpub %in% 1:2 | chip %in% 1:2) ~ 1,
+    # srvy_yr %in% 2004:2015 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
+    # TRUE ~ 2)) 
   # mutate(mcaid = case_when(medicaid %in% 1:2 ~ 1,
   #                          medicaid == 3     ~ 2,
   #                          TRUE              ~ NA_real_)) %>% 
