@@ -4,8 +4,11 @@
 library(here)
 library(tidyverse)
 library(srvyr)
+library(polypoly)
+
 options(survey.lonely.psu = "adjust")
 
+# Combine annual data -----------------------------------------------------
 # for 2004 only, psu, stratum, age variables are in the person file instead of
 #   the sample adult file--process 2004 separately
 person_04 <- readRDS(here("NHIS", "data", "2004", "personsx.rds")) %>% 
@@ -32,8 +35,9 @@ readNHIS <- function(yr) {
   inner_join(person, samadult)
   }
 
+# Recodes -----------------------------------------------------------------
 # combine 16 yearly tables into a single table and make into survey object
-# combine all years except 2004
+# first, combine all years except 2004, then add that year to the table
 nhis_dat <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>% 
   unnest(cols = srvy_yr) %>% 
   # add 2004 to table and arrange in year order
@@ -51,18 +55,16 @@ nhis_dat <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>%
     # dichotomize ER visits into 0 and 1+
     anyeruse = cut(ahernoy2, c(0, 1, 8), c("None", "One or more"),
                    right = FALSE, include.lowest = TRUE))
-  # INSURANCE RECODE
+  # insurance recode based on SAS code provided by NCHS
 nhis_dat <- nhis_dat %>% 
   mutate(otherpub = if_else(srvy_yr > 2007, othpub, otherpub),
          chip = if_else(srvy_yr > 2003, schip, chip)) %>% 
-  # Medicaid or any public coverage?
+  # Medicaid, CHIP or other public coverage
   mutate(mcaid = case_when(
     srvy_yr %in% 2000:2003 & (medicaid %in% 1:2 | otherpub == 1 | chip == 1) ~ 1,
     srvy_yr %in% 2000:2003 & (medicaid == 3 | otherpub == 2 | chip == 2) ~ 2,
-    srvy_yr %in% 2000:2003 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
     srvy_yr %in% 2004:2015 & (medicaid %in% 1:2 | otherpub %in% 1:2 | chip %in% 1:2) ~ 1,
     srvy_yr %in% 2004:2015 & (medicaid == 3 | otherpub == 3 | chip == 3) ~ 2,
-    srvy_yr %in% 2004:2015 & (medicaid %in% 7:9 | otherpub %in% 7:9 | chip %in% 7:9) ~ 9,
     TRUE ~ 9)) %>% 
   # dichotomized private coverage
   mutate(pricov = case_when(private %in% 1:2 ~ 1,
@@ -77,7 +79,9 @@ nhis_dat <- nhis_dat %>%
     notcov == 2 & pricov == 2 & mcaid == 2 ~ 4, # other
     TRUE                                   ~ NA_real_),
     instype = factor(instype, 1:4, 
-                     c("Uninsured", "Medicaid", "Private", "Other"))) 
+                     c("Uninsured", "Medicaid", "Private", "Other"))) %>% 
+  # add orthogonal polynomial contrasts to degree 4
+  poly_add_columns(srvy_yr, 4)
   
 # check unweighted counts for age 18-64
 # n_18_64 <- nhis_dat %>% 
@@ -85,7 +89,7 @@ nhis_dat <- nhis_dat %>%
 #   count(srvy_yr, instype)
 # looks good!
 
-# survey object  
+# Survey object -----------------------------------------------------------
 nhis_svy <- as_survey_design(nhis_dat, ids = psu, strata = c(stratum, srvy_yr),
                              weight = wtfa_sa, nest = TRUE)
 
@@ -99,18 +103,37 @@ nhis_svy <- as_survey_design(nhis_dat, ids = psu, strata = c(stratum, srvy_yr),
 # CHECK THAT PSU, STRATA, AND WEIGHTS ARE CORRECT--AGAINST SUDAAN?
 rm(nhis_04)
     
-# READY FOR ANALYSIS
+# check results against NCHS publication
+
+# Compute and plot estimates ----------------------------------------------
 results <- nhis_svy %>% 
   filter(agegrp == "18-64") %>% 
-  #, !is.na(anyeruse), !is.na(INSTYPE)
+  # filter(!is.na(anyeruse), !is.na(INSTYPE))
   group_by(srvy_yr, instype) %>% 
   summarize(n = unweighted(n()),
-            pct = survey_mean(anyeruse == "One or more", na.rm = TRUE)) %>% 
+            pct = survey_mean(anyeruse == "One or more", na.rm = TRUE,
+                              vartype = c("se", "var"))) %>% 
   filter(instype != "Other") %>% 
-  # arrange(srvy_yr, instype) %>% 
+  mutate(wgt = 1/pct_var) %>% 
+  select(-pct_var) %>% 
   mutate(across(starts_with("pct"), ~ 100 * .x))
 # point estimates match
 # std errors slightly off but match SAS--why? would SUDAAN match?
+
+# export results for Joinpoint
+# results %>% 
+#   filter(instype != "Other") %>% 
+#   mutate(instype = as.numeric(instype)) %>% 
+#   arrange(instype, srvy_yr) %>% 
+#   write.csv(here("NHIS", "data", "nhis.csv"), row.names = FALSE)
+
+# rough plot of ER use by insurance type
+ggplot(results, aes(x = srvy_yr, y = pct, 
+                    linetype = instype, shape = instype)) +
+  geom_point() +
+  geom_line()
+
+save(nhis_svy, results, file = here("NHIS", "data", "nhis.Rdata"))
 
 
 
