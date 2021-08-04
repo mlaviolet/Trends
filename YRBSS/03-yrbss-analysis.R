@@ -11,7 +11,7 @@ means_for_segmented <- svypredmeans(marginals, ~ svy_year) %>%
   poly_add_columns(yr, 3)
 
 model1 <- lm(mean ~ yr1 + yr2 + yr3, weights = wgt, data = means_for_segmented)
-model1_seg <- segmented(model1, npsi = 2)
-knot <- round(as.vector(model1_seg$psi[, "Est."]))
-
-slope(model1_seg, APC = TRUE)
+# model1_seg <- segmented(model1, ~ svy_year)
+# knot <- round(as.vector(model1_seg$psi[, "Est."]))
+# 
+# slope(model1_seg, APC = TRUE)
