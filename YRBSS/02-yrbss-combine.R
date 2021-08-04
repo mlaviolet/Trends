@@ -96,20 +96,22 @@ yrbss_svy %>%
   group_by(svy_year) %>% 
   summarize(pct = survey_mean(smoking == "Yes", na.rm = TRUE))
 
+yrbss_svy <- yrbss_svy %>% 
+  mutate(svy_year = as.numeric(svy_year))
 # BEGIN ANALYSIS ----------------------------------------------------------
 marginals <- 
   svyglm(I(smoking == "Yes") ~ sex + race_eth + grade,
          design = yrbss_svy, family = quasibinomial)
 
 # Second, run these marginals through the svypredmeans function 
-means_for_joinpoint <- svypredmeans(marginals, ~ factor(svy_year)) %>% 
+means_for_joinpoint <- svypredmeans(marginals, ~ svy_year) %>% 
   as_tibble(bind_cols(coef(.), SE(.)), rownames = "svy_year") %>% 
   mutate(wgt = (mean / SE ) ^ 2) 
 means_for_joinpoint
 # coef() gives point estimates; SE() for standard errors
 # RESUME HERE
-model1 <- lm(log(mean) ~ svy_year, weights = wgt, data = means_for_joinpoint)
-model1_seg <- segmented(model1, npsi = 1)
+model1 <- lm(log(mean) ~ as.numeric(svy_year), weights = wgt, data = means_for_joinpoint)
+model1_seg <- segmented(model1)
 
 
 # PLOT POINTS WITH SEGMENTED LINES ADDED
