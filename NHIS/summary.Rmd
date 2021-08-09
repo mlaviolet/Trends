@@ -1,0 +1,88 @@
+---
+title: "NHIS"
+author: "ML"
+date: "8/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This document summarizes trend analysis conducted exclusively with R, following recommendations in [National Center for Health Statistics Guidelines for Analysis
+of Trends](https://www.cdc.gov/nchs/data/series/sr_02/sr02_179.pdf). This case study examines emergency room use among adults aged 18–64, by insurance status, from the National Health Interview Survey (NHIS).
+
+## Obtaining data
+
+First we download the Person and Sample Adult data files from NCHS for the years 2000-2015. This is simplest using the `lodown` package, which must be installed from GitHub using the `devtools` package.
+
+```{r download, eval=FALSE}
+library(devtools)
+install_github("ajdamico/lodown")
+library(lodown)
+
+# download NHIS catalog
+nhis_cat <- get_catalog("nhis",
+                        output_dir = file.path(path.expand( "~" ), "NHIS"))
+
+# download person and sample adult files from 2000-2015
+# data files downloaded to subdirectory "NHIS" of home directory
+lodown("nhis", subset(nhis_cat, year %in% 2000:2015 & 
+                        type %in% c("personsx", "samadult")),
+       output_dir = file.path(path.expand( "~" ), "NHIS"))
+
+```
+
+The 16 data files must be stacked into a single multiyear table.
+
+```{r packages, eval=FALSE}
+
+library(tidyverse)
+library(srvyr)
+library(polypoly)
+```
+
+For all years except 2004, the PSU, stratum and age variables are in the sample adult file. For 2004, they appear in the person file. We first build a table for 2004 containing the variables needed for analysis. All data files are in .rds format.
+
+```{r 2004, eval=FALSE}
+# add explanation of variables
+person_04 <- readRDS("2004/personsx.rds") %>% 
+  select(srvy_yr, hhx, fmx, ends_with("px"), ends_with("pub"), psu, stratum,
+         ends_with("chip"), medicaid, private, notcov, age_p)
+
+samadult_04 <- readRDS("2004/samadult.rds") %>% 
+  select(srvy_yr, hhx, fmx, ends_with("px"), starts_with("wtfa"), ahernoy2, 
+         starts_with("strat"))
+
+nhis_04 <- inner_join(person_04, samadult_04, 
+                      by = c("srvy_yr", "hhx", "fmx", "fpx"))
+rm(person_04, samadult_04)
+```
+
+For the other years
+
+```{r}
+# this function reads the person and sample adult files for the years 2000-2003, 2005-2016, and joins them into an annual data table 
+readNHIS <- function(yr) {
+  person <- readRDS(here("NHIS", "data", paste0("20", yr), "personsx.rds")) %>% 
+    select(srvy_yr, hhx, fmx, ends_with("px"), ends_with("pub"), 
+           ends_with("chip"), medicaid, private, notcov)
+  
+  samadult <- readRDS(here("NHIS", "data", paste0("20", yr), 
+                           "samadult.rds")) %>% 
+    select(srvy_yr, hhx, fmx, ends_with("px"), starts_with("wtfa"), ahernoy2,
+           starts_with("psu"), starts_with("strat"), age_p,
+           ends_with("chip"), ends_with("pub"))
+  
+  inner_join(person, samadult)
+  }
+
+nhis_dat <- map_dfr(sprintf("%02d", (0:15)[-5]), readNHIS) %>% 
+  unnest(cols = srvy_yr) %>% 
+  # add 2004 to table and arrange in year order
+  bind_rows(nhis_04) %>% 
+  arrange(srvy_yr, hhx)
+```
+
